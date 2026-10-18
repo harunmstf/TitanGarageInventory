@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#183b2d">
+  <meta name="description" content="Локален инвентар за гараж — наличности, части и история.">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <title>Моят гараж — наличности</title>
+  <style>
+    :root { color-scheme: light; --green:#183b2d; --green2:#285b45; --bg:#f4f6f4; --card:#fff; --text:#18231d; --muted:#69766e; --line:#e0e7e1; --red:#b42318; --amber:#8a5200; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:var(--bg); color:var(--text); }
+    button,input,select,textarea { font:inherit; }
+    button { cursor:pointer; }
+    .app { max-width:760px; margin:auto; padding: max(14px, env(safe-area-inset-top)) 14px max(24px, env(safe-area-inset-bottom)); }
+    header { display:flex; align-items:center; gap:12px; margin:8px 0 18px; }
+    .logo { width:48px; height:48px; border-radius:15px; display:grid; place-items:center; color:#fff; background:var(--green); font-size:25px; }
+    h1 { font-size:22px; margin:0; letter-spacing:-.4px; }
+    .subtitle { color:var(--muted); font-size:13px; margin-top:2px; }
+    .tabs { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-bottom:14px; }
+    .tab { border:1px solid var(--line); background:#fff; border-radius:12px; padding:11px 5px; color:#34443a; font-weight:650; }
+    .tab.active { background:var(--green); color:#fff; border-color:var(--green); }
+    .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px; }
+    .stat { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; min-width:0; }
+    .stat-label { font-size:12px; color:var(--muted); }
+    .stat-number { font-size:25px; font-weight:750; margin-top:3px; }
+    .panel { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px; margin-bottom:12px; }
+    .toolbar { display:flex; gap:8px; margin-bottom:12px; }
+    .search { flex:1; min-width:0; }
+    input,select,textarea { width:100%; border:1px solid #ccd7ce; background:#fff; color:var(--text); border-radius:11px; padding:11px 12px; outline:none; }
+    input:focus,select:focus,textarea:focus { border-color:var(--green2); box-shadow:0 0 0 3px #285b4520; }
+    .btn { border:0; border-radius:11px; background:var(--green); color:#fff; padding:11px 14px; font-weight:700; }
+    .btn.secondary { background:#e8eee9; color:var(--green); }
+    .btn.danger { background:#fce9e7; color:var(--red); }
+    .btn.small { padding:8px 11px; }
+    .btn:disabled { opacity:.35; cursor:not-allowed; }
+    .product { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; padding:14px 0; border-bottom:1px solid var(--line); }
+    .product:last-child { border-bottom:0; padding-bottom:2px; }
+    .product-name { font-weight:750; overflow-wrap:anywhere; }
+    .meta { color:var(--muted); font-size:12px; margin-top:4px; }
+    .status { display:inline-flex; align-items:center; border-radius:999px; padding:4px 8px; margin-top:7px; font-size:11px; font-weight:750; }
+    .status.ok { background:#e4f4e8; color:#21663b; }
+    .status.low { background:#fff0d5; color:var(--amber); }
+    .status.out { background:#fde8e7; color:var(--red); }
+    .stock-controls { display:flex; align-items:center; gap:7px; align-self:center; }
+    .qty { min-width:26px; text-align:center; font-weight:800; font-size:18px; font-variant-numeric:tabular-nums; }
+    .step { width:38px; height:42px; border-radius:12px; border:1px solid var(--line); background:#f7faf7; color:var(--green); font-size:23px; font-weight:600; }
+    .step.plus { background:var(--green); color:#fff; border-color:var(--green); }
+    .empty { padding:30px 10px; text-align:center; color:var(--muted); }
+    .section-title { font-size:16px; font-weight:800; margin:0 0 12px; }
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .field { display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:700; }
+    .field.full { grid-column:1/-1; }
+    .actions { display:flex; gap:8px; margin-top:14px; }
+    .actions button { flex:1; }
+    .history-row { padding:11px 0; border-bottom:1px solid var(--line); display:flex; gap:10px; justify-content:space-between; align-items:flex-start; }
+    .history-row:last-child { border-bottom:0; }
+    .delta { font-weight:800; white-space:nowrap; }
+    .delta.plus { color:#217346; } .delta.minus { color:var(--red); }
+    .small-muted { color:var(--muted); font-size:12px; }
+    .hidden { display:none !important; }
+    .notice { font-size:12px; line-height:1.45; color:var(--muted); background:#edf2ee; border-radius:12px; padding:11px 12px; margin-top:12px; }
+    .footer { color:var(--muted); font-size:11px; text-align:center; padding:10px 0 4px; }
+    dialog { width:min(560px, calc(100% - 24px)); border:0; border-radius:18px; padding:18px; box-shadow:0 20px 80px #0003; }
+    dialog::backdrop { background:#0d1b14a6; }
+    .modal-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+    .modal-head h2 { font-size:19px; margin:0; }
+    .icon-btn { border:0; background:#edf2ee; color:var(--green); border-radius:10px; width:38px; height:38px; font-size:20px; }
+    @media(max-width:420px) { .app{padding-left:11px;padding-right:11px} .stat{padding:10px} .stat-number{font-size:22px} .product{gap:5px} .stock-controls{gap:4px} .step{width:35px;height:40px} .form-grid{grid-template-columns:1fr} .field.full{grid-column:auto} }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">🔧</div>
+    <div><h1>Моят гараж</h1><div class="subtitle">Локални наличности · работи и офлайн</div></div>
+  </header>
+
+  <nav class="tabs" aria-label="Основно меню">
+    <button class="tab active" data-tab="inventory">Наличности</button>
+    <button class="tab" data-tab="history">История</button>
+    <button class="tab" data-tab="backup">Архив</button>
+  </nav>
+
+  <section id="inventoryView">
+    <div class="stats">
+      <div class="stat"><div class="stat-label">Продукти</div><div class="stat-number" id="totalCount">0</div></div>
+      <div class="stat"><div class="stat-label">Ниска наличност</div><div class="stat-number" id="lowCount">0</div></div>
+      <div class="stat"><div class="stat-label">Изчерпани</div><div class="stat-number" id="outCount">0</div></div>
+    </div>
+    <div class="panel">
+      <div class="toolbar">
+        <input id="search" class="search" placeholder="Търси масло, филтър, марка…" autocomplete="off">
+        <button id="addBtn" class="btn">+ Добави</button>
+      </div>
+      <div class="toolbar">
+        <select id="filter" aria-label="Филтър по наличност">
+          <option value="all">Всички продукти</option>
+          <option value="low">Ниска наличност</option>
+          <option value="out">Изчерпани</option>
+        </select>
+        <select id="sort" aria-label="Сортиране">
+          <option value="name">По име</option>
+          <option value="qty">По количество</option>
+          <option value="category">По категория</option>
+        </select>
+      </div>
+      <div id="products"></div>
+      <div class="notice">Натисни −, когато използваш продукт, и +, когато зареждаш нова наличност. Данните се пазят на това устройство.</div>
+    </div>
+  </section>
+
+  <section id="historyView" class="hidden">
+    <div class="panel">
+      <h2 class="section-title">История на промените</h2>
+      <div id="historyList"></div>
+      <button id="clearHistory" class="btn secondary small">Изчисти историята</button>
+    </div>
+  </section>
+
+  <section id="backupView" class="hidden">
+    <div class="panel">
+      <h2 class="section-title">Архив и възстановяване</h2>
+      <p class="small-muted">Запази резервно копие на продуктите и историята като JSON файл. Използвай го, ако смениш телефона или браузърът изтрие данните.</p>
+      <button id="exportBtn" class="btn" style="width:100%;margin:8px 0 12px">Изтегли резервно копие</button>
+      <label class="field">Възстанови от резервно копие (JSON файл)
+        <input id="importFile" type="file" accept="application/json,.json">
+      </label>
+      <div class="notice">Важно: не използвай „Изчистване на данните на сайта“ без резервно копие. Архивът е файл на телефона, не се качва никъде.</div>
+      <button id="wipeBtn" class="btn danger" style="width:100%;margin-top:14px">Изтрий всички данни</button>
+    </div>
+  </section>
+  <div class="footer">Версия 1.0 · Данните остават само в този браузър на телефона.</div>
+</div>
+
+<dialog id="productDialog">
+  <div class="modal-head"><h2 id="dialogTitle">Добави продукт</h2><button class="icon-btn" id="closeDialog" aria-label="Затвори">×</button></div>
+  <form id="productForm">
+    <input type="hidden" id="productId">
+    <div class="form-grid">
+      <label class="field full">Име на продукта *
+        <input id="name" required maxlength="100" placeholder="напр. Масло 5W-40, 1 л">
+      </label>
+      <label class="field">Категория
+        <select id="category">
+          <option>Моторни масла</option><option>Маслени филтри</option><option>Въздушни филтри</option><option>Горивни филтри</option><option>Купе филтри</option><option>Охладителни течности</option><option>Спирачки</option><option>Други части</option><option>Инструменти</option>
+        </select>
+      </label>
+      <label class="field">Марка
+        <input id="brand" maxlength="60" placeholder="напр. Mann, Castrol">
+      </label>
+      <label class="field">Номер на частта
+        <input id="partNumber" maxlength="80" placeholder="по желание">
+      </label>
+      <label class="field">Мерна единица
+        <select id="unit"><option value="бр.">бр.</option><option value="л">л</option><option value="кг">кг</option><option value="комплект">комплект</option><option value="опаковка">опаковка</option></select>
+      </label>
+      <label class="field">Начално количество *
+        <input id="quantity" type="number" min="0" max="100000" step="1" required value="0">
+      </label>
+      <label class="field">Минимална наличност *
+        <input id="minQuantity" type="number" min="0" max="100000" step="1" required value="2">
+      </label>
+    </div>
+    <div class="actions"><button type="button" id="cancelDialog" class="btn secondary">Отказ</button><button class="btn" type="submit">Запази</button></div>
+  </form>
+</dialog>
+
+<script>
+(() => {
+  const DB_KEY = "garageInventory.v1";
+  const $ = id => document.getElementById(id);
+  let state = loadState();
+  let activeTab = "inventory";
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(DB_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return { products: Array.isArray(parsed.products) ? parsed.products : [], history: Array.isArray(parsed.history) ? parsed.history : [] };
+      }
+    } catch (e) { console.warn("Could not load local data", e); }
+    return { products: [], history: [] };
+  }
+  function saveState() {
+    try { localStorage.setItem(DB_KEY, JSON.stringify(state)); }
+    catch (e) { alert("Неуспешно записване. Освободи място в браузъра и направи резервно копие."); }
+  }
+  function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+  function status(p) {
+    if (p.quantity === 0) return ["out","Изчерпан"];
+    if (p.quantity <= p.minQuantity) return ["low","Ниска наличност"];
+    return ["ok","В наличност"];
+  }
+  function render() {
+    $("totalCount").textContent = state.products.length;
+    $("lowCount").textContent = state.products.filter(p => p.quantity > 0 && p.quantity <= p.minQuantity).length;
+    $("outCount").textContent = state.products.filter(p => p.quantity === 0).length;
+    const query = $("search").value.trim().toLocaleLowerCase("bg");
+    const filter = $("filter").value;
+    let products = state.products.filter(p => {
+      const match = [p.name,p.category,p.brand,p.partNumber].join(" ").toLocaleLowerCase("bg").includes(query);
+      const st = status(p)[0];
+      return match && (filter === "all" || (filter === "low" && st === "low") || (filter === "out" && st === "out"));
+    });
+    const sort = $("sort").value;
+    products.sort((a,b) => sort === "qty" ? a.quantity-b.quantity : sort === "category" ? a.category.localeCompare(b.category,"bg") : a.name.localeCompare(b.name,"bg"));
+    $("products").innerHTML = products.length ? products.map(p => {
+      const [cls,label] = status(p);
+      return `<article class="product">
+        <div><div class="product-name">${esc(p.name)}</div>
+          <div class="meta">${esc(p.category)}${p.brand ? " · "+esc(p.brand):""}${p.partNumber ? "<br>№ "+esc(p.partNumber):""}</div>
+          <span class="status ${cls}">${label}</span>
+          <div class="meta">Минимум: ${p.minQuantity} ${esc(p.unit)}</div>
+          <div style="display:flex;gap:7px;margin-top:8px">
+            <button class="btn secondary small edit" data-id="${esc(p.id)}">Редактирай</button>
+            <button class="btn secondary small delete" data-id="${esc(p.id)}">Изтрий</button>
+          </div>
+        </div>
+        <div class="stock-controls">
+          <button class="step minus" data-id="${esc(p.id)}" aria-label="Намали наличността" ${p.quantity <= 0 ? "disabled":""}>−</button>
+          <div class="qty">${p.quantity}</div>
+          <button class="step plus" data-id="${esc(p.id)}" aria-label="Увеличи наличността">+</button>
+        </div>
+      </article>`;
+    }).join("") : `<div class="empty">${state.products.length ? "Няма продукти, отговарящи на търсенето." : "Все още няма продукти.<br>Натисни „+ Добави“, за да започнеш."}</div>`;
+    renderHistory();
+  }
+  function record(p, delta, before, after, reason) {
+    state.history.unshift({id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now())+Math.random(), productId:p.id, productName:p.name, delta, before, after, reason, date:new Date().toISOString()});
+    if (state.history.length > 1000) state.history.length = 1000;
+  }
+  function adjust(id, delta) {
+    const p = state.products.find(x => x.id === id);
+    if (!p || p.quantity + delta < 0) return;
+    const before = p.quantity;
+    p.quantity += delta;
+    p.updatedAt = new Date().toISOString();
+    record(p, delta, before, p.quantity, delta > 0 ? "Добавена наличност" : "Използван продукт");
+    saveState(); render();
+  }
+  function renderHistory() {
+    const list = $("historyList");
+    if (!state.history.length) { list.innerHTML = '<div class="empty">Все още няма промени в наличностите.</div>'; return; }
+    list.innerHTML = state.history.map(h => {
+      const date = new Date(h.date);
+      const dateText = isNaN(date) ? "" : date.toLocaleString("bg-BG", {dateStyle:"short",timeStyle:"short"});
+      return `<div class="history-row"><div><strong>${esc(h.productName)}</strong><div class="small-muted">${esc(h.reason)} · ${esc(dateText)}</div><div class="small-muted">${h.before} → ${h.after}</div></div><div class="delta ${h.delta > 0 ? "plus":"minus"}">${h.delta > 0 ? "+":""}${h.delta}</div></div>`;
+    }).join("");
+  }
+  function showTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+    $("inventoryView").classList.toggle("hidden", tab !== "inventory");
+    $("historyView").classList.toggle("hidden", tab !== "history");
+    $("backupView").classList.toggle("hidden", tab !== "backup");
+  }
+  function openForm(p=null) {
+    $("productForm").reset();
+    $("productId").value = p ? p.id : "";
+    $("dialogTitle").textContent = p ? "Редактирай продукт" : "Добави продукт";
+    $("name").value = p?.name || "";
+    $("category").value = p?.category || "Моторни масла";
+    $("brand").value = p?.brand || "";
+    $("partNumber").value = p?.partNumber || "";
+    $("unit").value = p?.unit || "бр.";
+    $("quantity").value = p ? p.quantity : 0;
+    $("minQuantity").value = p ? p.minQuantity : 2;
+    $("productDialog").showModal();
+  }
+  $("addBtn").addEventListener("click", () => openForm());
+  $("closeDialog").addEventListener("click", () => $("productDialog").close());
+  $("cancelDialog").addEventListener("click", () => $("productDialog").close());
+  $("productForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const id = $("productId").value;
+    const quantity = Number($("quantity").value), minQuantity = Number($("minQuantity").value);
+    if (!Number.isInteger(quantity) || quantity < 0 || !Number.isInteger(minQuantity) || minQuantity < 0) return alert("Количеството и минималната наличност трябва да са цели числа, равни или по-големи от 0.");
+    const fields = {name:$("name").value.trim(),category:$("category").value,brand:$("brand").value.trim(),partNumber:$("partNumber").value.trim(),unit:$("unit").value,quantity,minQuantity};
+    if (!fields.name) return;
+    if (id) {
+      const p = state.products.find(x => x.id === id);
+      if (!p) return;
+      const before = p.quantity;
+      Object.assign(p, fields, {updatedAt:new Date().toISOString()});
+      if (before !== quantity) record(p, quantity-before, before, quantity, "Корекция при редакция");
+    } else {
+      const p = {...fields,id:crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+      state.products.push(p);
+      record(p, quantity, 0, quantity, "Създаден продукт");
+    }
+    saveState(); $("productDialog").close(); render();
+  });
+  $("products").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    const id = b.dataset.id;
+    if (b.classList.contains("plus")) adjust(id,1);
+    if (b.classList.contains("minus")) adjust(id,-1);
+    if (b.classList.contains("edit")) { const p=state.products.find(x=>x.id===id); if(p) openForm(p); }
+    if (b.classList.contains("delete")) {
+      const p=state.products.find(x=>x.id===id);
+      if (p && confirm(`Да изтрия ли „${p.name}“? Историята на старите промени ще остане.`)) {
+        state.products=state.products.filter(x=>x.id!==id); saveState(); render();
+      }
+    }
+  });
+  document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+  $("search").addEventListener("input", render);
+  $("filter").addEventListener("change", render);
+  $("sort").addEventListener("change", render);
+  $("clearHistory").addEventListener("click", () => {
+    if (confirm("Да изчистя ли цялата история? Това не може да се отмени.")) { state.history=[]; saveState(); renderHistory(); }
+  });
+  $("exportBtn").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify({app:"garage-inventory",version:1,exportedAt:new Date().toISOString(),...state},null,2)], {type:"application/json"});
+    const url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href=url; a.download="garazh-rezervno-kopie-"+new Date().toISOString().slice(0,10)+".json"; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  });
+  $("importFile").addEventListener("change", async e => {
+    const file=e.target.files[0]; if(!file) return;
+    try {
+      const data=JSON.parse(await file.text());
+      if (!Array.isArray(data.products) || !Array.isArray(data.history)) throw new Error("bad");
+      if (!confirm("Възстановяването ще замени сегашните продукти и история. Продължаваме ли?")) return;
+      state={products:data.products,history:data.history}; saveState(); render(); showTab("inventory");
+      alert("Резервното копие е възстановено.");
+    } catch(err) { alert("Файлът не е валидно резервно копие на приложението."); }
+    finally { e.target.value=""; }
+  });
+  $("wipeBtn").addEventListener("click", () => {
+    if (confirm("Сигурен ли си? Всички продукти и историята ще бъдат изтрити от този браузър.")) {
+      state={products:[],history:[]}; saveState(); render(); showTab("inventory");
+    }
+  });
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch(console.warn));
+  }
+  render();
+})();
+</script>
+</body>
+</html>
