@@ -62,6 +62,15 @@
     .small-muted { color:var(--muted); font-size:12px; }
     .hidden { display:none !important; }
     .notice { font-size:12px; line-height:1.45; color:var(--muted); background:#edf2ee; border-radius:12px; padding:11px 12px; margin-top:12px; }
+    .car-card { border:1px solid var(--line); border-radius:14px; padding:13px; margin:10px 0; }
+    .car-head { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+    .plate { display:inline-block; border:2px solid #34443a; background:#fff; color:#18231d; border-radius:7px; padding:4px 9px; font-weight:850; letter-spacing:.5px; }
+    .car-title { font-weight:800; margin-top:8px; font-size:16px; }
+    .service-entry { border-left:3px solid var(--green2); background:#f7faf7; padding:10px 11px; border-radius:0 10px 10px 0; margin-top:10px; }
+    .service-entry-head { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+    .service-entry-title { font-weight:750; }
+    .service-entry-meta { color:var(--muted); font-size:12px; margin-top:4px; }
+    .comment { font-size:13px; margin-top:7px; white-space:pre-wrap; overflow-wrap:anywhere; }
     .footer { color:var(--muted); font-size:11px; text-align:center; padding:10px 0 4px; }
     dialog { width:min(560px, calc(100% - 24px)); border:0; border-radius:18px; padding:18px; box-shadow:0 20px 80px #0003; }
     dialog::backdrop { background:#0d1b14a6; }
@@ -81,7 +90,7 @@
   <nav class="tabs" aria-label="Основно меню">
     <button class="tab active" data-tab="inventory">Наличности</button>
     <button class="tab" data-tab="history">История</button>
-    <button class="tab" data-tab="backup">Архив</button>
+    <button class="tab" data-tab="service">Сервиз</button>
   </nav>
 
   <section id="inventoryView">
@@ -120,6 +129,17 @@
     </div>
   </section>
 
+  <section id="serviceView" class="hidden">
+    <div class="panel">
+      <div class="toolbar">
+        <input id="carSearch" class="search" placeholder="Търси по регистрационен номер…" autocomplete="off">
+        <button id="addCarBtn" class="btn">+ Добави</button>
+      </div>
+      <div id="carsList"></div>
+      <div class="notice">Записвай всяко обслужване с километри, извършени дейности и коментар. Данните се пазят локално на това устройство.</div>
+    </div>
+  </section>
+
   <section id="backupView" class="hidden">
     <div class="panel">
       <h2 class="section-title">Архив и възстановяване</h2>
@@ -135,6 +155,32 @@
   <div class="footer">Версия 1.0 · Данните остават само в този браузър на телефона.</div>
 </div>
 
+<dialog id="carDialog">
+  <div class="modal-head"><h2 id="carDialogTitle">Добави автомобил</h2><button class="icon-btn" id="closeCarDialog" aria-label="Затвори">×</button></div>
+  <form id="carForm"><input type="hidden" id="carId">
+    <div class="form-grid">
+      <label class="field">Регистрационен номер *<input id="carReg" required maxlength="20" placeholder="PB1234AB"></label>
+      <label class="field">Собственик *<input id="carOwner" required maxlength="100"></label>
+      <label class="field">Марка *<input id="carBrand" required maxlength="60" placeholder="Audi"></label>
+      <label class="field">Модел *<input id="carModel" required maxlength="60" placeholder="A3"></label>
+      <label class="field">Двигател<input id="carEngine" maxlength="80" placeholder="2.0 TDI"></label>
+      <label class="field">Мощност (к.с.)<input id="carHp" type="number" min="0" max="3000" step="1"></label>
+    </div>
+    <div class="actions"><button type="button" id="cancelCarDialog" class="btn secondary">Отказ</button><button class="btn" type="submit">Запази автомобила</button></div>
+  </form>
+</dialog>
+<dialog id="serviceDialog">
+  <div class="modal-head"><h2 id="serviceDialogTitle">Добави обслужване</h2><button class="icon-btn" id="closeServiceDialog" aria-label="Затвори">×</button></div>
+  <form id="serviceForm"><input type="hidden" id="serviceId"><input type="hidden" id="serviceCarId">
+    <div class="form-grid">
+      <label class="field full">Извършена дейност *<input id="serviceWork" required maxlength="150" placeholder="Смяна на масло и филтри"></label>
+      <label class="field">Километри на автомобила *<input id="serviceKm" type="number" min="0" max="2000000" step="1" required placeholder="245000"></label>
+      <label class="field">Дата<input id="serviceDate" type="date"></label>
+      <label class="field full">Коментар<textarea id="serviceComment" rows="3" maxlength="2000" placeholder="Използвани части, масло, препоръки…"></textarea></label>
+    </div>
+    <div class="actions"><button type="button" id="cancelServiceDialog" class="btn secondary">Отказ</button><button class="btn" type="submit">Запази обслужването</button></div>
+  </form>
+</dialog>
 <dialog id="productDialog">
   <div class="modal-head"><h2 id="dialogTitle">Добави продукт</h2><button class="icon-btn" id="closeDialog" aria-label="Затвори">×</button></div>
   <form id="productForm">
@@ -180,10 +226,10 @@
       const raw = localStorage.getItem(DB_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        return { products: Array.isArray(parsed.products) ? parsed.products : [], history: Array.isArray(parsed.history) ? parsed.history : [] };
+        return { products: Array.isArray(parsed.products) ? parsed.products : [], history: Array.isArray(parsed.history) ? parsed.history : [], cars: Array.isArray(parsed.cars) ? parsed.cars : [] };
       }
     } catch (e) { console.warn("Could not load local data", e); }
-    return { products: [], history: [] };
+    return { products: [], history: [], cars: [] };
   }
   function saveState() {
     try { localStorage.setItem(DB_KEY, JSON.stringify(state)); }
@@ -228,6 +274,7 @@
       </article>`;
     }).join("") : `<div class="empty">${state.products.length ? "Няма продукти, отговарящи на търсенето." : "Все още няма продукти.<br>Натисни „+ Добави“, за да започнеш."}</div>`;
     renderHistory();
+    renderCars();
   }
   function record(p, delta, before, after, reason) {
     state.history.unshift({id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now())+Math.random(), productId:p.id, productName:p.name, delta, before, after, reason, date:new Date().toISOString()});
@@ -241,6 +288,32 @@
     p.updatedAt = new Date().toISOString();
     record(p, delta, before, p.quantity, delta > 0 ? "Добавена наличност" : "Използван продукт");
     saveState(); render();
+  }
+  function renderCars() {
+    const q = $("carSearch").value.trim().toLocaleLowerCase("bg").replace(/\s+/g,"");
+    const cars = (state.cars || []).filter(c => {
+      const reg=(c.reg||"").toLocaleLowerCase("bg").replace(/\s+/g,"");
+      return !q || reg.includes(q) || [c.owner,c.brand,c.model,c.engine].join(" ").toLocaleLowerCase("bg").includes(q);
+    }).sort((a,b)=>(a.reg||"").localeCompare(b.reg||"","bg"));
+    $("carsList").innerHTML = cars.length ? cars.map(c => {
+      const records=(c.services||[]).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+      return `<article class="car-card"><div class="car-head"><div><span class="plate">${esc(c.reg)}</span><div class="car-title">${esc(c.brand)} ${esc(c.model)}</div><div class="meta">Собственик: ${esc(c.owner)}${c.engine?" · Двигател: "+esc(c.engine):""}${c.hp?" · "+esc(c.hp)+" к.с.":""}</div></div><button class="btn secondary small edit-car" data-id="${esc(c.id)}">Редактирай</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn small add-service" data-id="${esc(c.id)}">+ Обслужване</button><button class="btn secondary small delete-car" data-id="${esc(c.id)}">Изтрий автомобил</button></div>
+      <div style="font-weight:800;margin-top:14px">История на обслужването (${records.length})</div>
+      ${records.length ? records.map(s=>`<div class="service-entry"><div class="service-entry-head"><div class="service-entry-title">${esc(s.work)}</div><button class="btn secondary small edit-service" data-car="${esc(c.id)}" data-id="${esc(s.id)}">Редактирай</button></div><div class="service-entry-meta">${Number(s.km).toLocaleString("bg-BG")} км${s.date?" · "+esc(s.date):""}</div>${s.comment?`<div class="comment">${esc(s.comment)}</div>`:""}<div style="margin-top:8px"><button class="btn danger small delete-service" data-car="${esc(c.id)}" data-id="${esc(s.id)}">Изтрий запис</button></div></div>`).join(""):`<div class="empty">Все още няма записано обслужване.</div>`}</article>`;
+    }).join("") : `<div class="empty">${(state.cars||[]).length?"Няма намерени автомобили.":"Все още няма автомобили. Натисни „+ Добави“, за да запишеш първия."}</div>`;
+  }
+  function openCarForm(c=null) {
+    $("carForm").reset(); $("carId").value=c?c.id:""; $("carDialogTitle").textContent=c?"Редактирай автомобил":"Добави автомобил";
+    $("carReg").value=c?.reg||""; $("carOwner").value=c?.owner||""; $("carBrand").value=c?.brand||""; $("carModel").value=c?.model||""; $("carEngine").value=c?.engine||""; $("carHp").value=c?.hp??"";
+    $("carDialog").showModal();
+  }
+  function openServiceForm(carId,s=null) {
+    const c=state.cars.find(x=>x.id===carId); if(!c)return;
+    $("serviceForm").reset(); $("serviceId").value=s?s.id:""; $("serviceCarId").value=carId;
+    $("serviceDialogTitle").textContent=s?"Редактирай обслужване":"Добави обслужване";
+    $("serviceWork").value=s?.work||""; $("serviceKm").value=s?.km??""; $("serviceDate").value=s?.date||new Date().toISOString().slice(0,10); $("serviceComment").value=s?.comment||"";
+    $("serviceDialog").showModal();
   }
   function renderHistory() {
     const list = $("historyList");
@@ -256,6 +329,7 @@
     document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
     $("inventoryView").classList.toggle("hidden", tab !== "inventory");
     $("historyView").classList.toggle("hidden", tab !== "history");
+    $("serviceView").classList.toggle("hidden", tab !== "service");
     $("backupView").classList.toggle("hidden", tab !== "backup");
   }
   function openForm(p=null) {
@@ -311,6 +385,36 @@
   $("search").addEventListener("input", render);
   $("filter").addEventListener("change", render);
   $("sort").addEventListener("change", render);
+  $("addCarBtn").addEventListener("click",()=>openCarForm());
+  $("carSearch").addEventListener("input",renderCars);
+  $("closeCarDialog").addEventListener("click",()=>$("carDialog").close());
+  $("cancelCarDialog").addEventListener("click",()=>$("carDialog").close());
+  $("carForm").addEventListener("submit",e=>{
+    e.preventDefault(); const id=$("carId").value;
+    const f={reg:$("carReg").value.trim().toLocaleUpperCase("bg"),owner:$("carOwner").value.trim(),brand:$("carBrand").value.trim(),model:$("carModel").value.trim(),engine:$("carEngine").value.trim(),hp:$("carHp").value===""?"":Number($("carHp").value)};
+    if(!f.reg||!f.owner||!f.brand||!f.model)return;
+    if(state.cars.some(c=>c.reg.replace(/\s+/g,"")===f.reg.replace(/\s+/g,"")&&c.id!==id))return alert("Вече има автомобил с този регистрационен номер.");
+    if(id){const c=state.cars.find(c=>c.id===id);if(c)Object.assign(c,f);}else state.cars.push({...f,id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),services:[]});
+    saveState();$("carDialog").close();renderCars();
+  });
+  $("carsList").addEventListener("click",e=>{
+    const b=e.target.closest("button");if(!b)return;const id=b.dataset.id,c=state.cars.find(c=>c.id===id);
+    if(b.classList.contains("edit-car")&&c)openCarForm(c);
+    if(b.classList.contains("add-service")&&c)openServiceForm(id);
+    if(b.classList.contains("delete-car")&&c&&confirm(`Да изтрия ли автомобила ${c.reg} и всички негови записи за обслужване?`)){state.cars=state.cars.filter(c=>c.id!==id);saveState();renderCars();}
+    if(b.classList.contains("edit-service")&&c){const s=c.services.find(s=>s.id===b.dataset.id);if(s)openServiceForm(id,s);}
+    if(b.classList.contains("delete-service")&&c&&confirm("Да изтрия ли този запис за обслужване?")){c.services=c.services.filter(s=>s.id!==b.dataset.id);saveState();renderCars();}
+  });
+  $("closeServiceDialog").addEventListener("click",()=>$("serviceDialog").close());
+  $("cancelServiceDialog").addEventListener("click",()=>$("serviceDialog").close());
+  $("serviceForm").addEventListener("submit",e=>{
+    e.preventDefault();const c=state.cars.find(c=>c.id===$("serviceCarId").value);if(!c)return;
+    const id=$("serviceId").value,km=Number($("serviceKm").value);if(!Number.isInteger(km)||km<0)return alert("Въведи валидни километри.");
+    const f={work:$("serviceWork").value.trim(),km,date:$("serviceDate").value,comment:$("serviceComment").value.trim()};if(!f.work)return;
+    if(!Array.isArray(c.services))c.services=[];
+    if(id){const s=c.services.find(s=>s.id===id);if(s)Object.assign(s,f);}else c.services.push({...f,id:crypto.randomUUID?crypto.randomUUID():String(Date.now())});
+    saveState();$("serviceDialog").close();renderCars();
+  });
   $("clearHistory").addEventListener("click", () => {
     if (confirm("Да изчистя ли цялата история? Това не може да се отмени.")) { state.history=[]; saveState(); renderHistory(); }
   });
@@ -325,15 +429,16 @@
     try {
       const data=JSON.parse(await file.text());
       if (!Array.isArray(data.products) || !Array.isArray(data.history)) throw new Error("bad");
+      if (!Array.isArray(data.cars)) data.cars = [];
       if (!confirm("Възстановяването ще замени сегашните продукти и история. Продължаваме ли?")) return;
-      state={products:data.products,history:data.history}; saveState(); render(); showTab("inventory");
+      state={products:data.products,history:data.history,cars:data.cars}; saveState(); render(); showTab("inventory");
       alert("Резервното копие е възстановено.");
     } catch(err) { alert("Файлът не е валидно резервно копие на приложението."); }
     finally { e.target.value=""; }
   });
   $("wipeBtn").addEventListener("click", () => {
     if (confirm("Сигурен ли си? Всички продукти и историята ще бъдат изтрити от този браузър.")) {
-      state={products:[],history:[]}; saveState(); render(); showTab("inventory");
+      state={products:[],history:[],cars:[]}; saveState(); render(); showTab("inventory");
     }
   });
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
